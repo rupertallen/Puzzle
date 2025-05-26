@@ -2,75 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cut-Up Chessboard Puzzle</title>
+  <title>A Cut-Up Chessboard</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
   <style>
     body {
-      text-align: center;
-      font-family: sans-serif;
+      font-family: 'Georgia', serif;
+      background-color: #fdfaf5;
+      color: #000;
+      padding: 2em;
+      max-width: 1000px;
+      margin: auto;
     }
-    canvas {
+    .canvas-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    #puzzle {
       border: 2px solid #333;
-      margin: 10px auto;
-      display: block;
+      background-color: white;
     }
     button {
       margin: 10px;
       padding: 10px 20px;
       font-size: 16px;
+      font-family: 'Georgia', serif;
+    }
+    h1 {
+      text-align: center;
+      text-transform: uppercase;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+    p {
+      font-size: 18px;
+      line-height: 1.5em;
+    }
+    .controls {
+      text-align: center;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h1>🧩 Cut-Up Chessboard Puzzle</h1>
-  <p>Drag, rotate (use corner), and snap pieces to fit an 8x8 grid.</p>
+  <h1>54. A Cut-Up Chessboard</h1>
+  <p>
+    A merry chess player cut his cardboard chessboard into 14 parts, as shown.
+    Friends who wanted to play chess with him had to put the parts back together again first.
+  </p>
 
-  <button onclick="resetPuzzle()">🔁 Reset</button>
-  <button onclick="checkSolution()">✔️ Check Solution</button>
-  <p id="status" style="font-weight: bold; font-size: 18px;"></p>
+  <div class="canvas-container">
+    <canvas id="puzzle" width="400" height="400"></canvas>
+  </div>
 
-  <canvas id="puzzle" width="600" height="600"></canvas>
+  <div class="controls">
+    <button onclick="jumblePuzzle()">🧩 Jumble</button>
+    <button onclick="resetPuzzle()">🔁 Reset</button>
+    <button onclick="checkSolution()">✔️ Check Solution</button>
+    <p id="status" style="font-weight: bold; font-size: 18px;"></p>
+  </div>
 
   <script>
     const canvas = new fabric.Canvas('puzzle');
     const blockSize = 50;
     const gridSize = 8;
     let pieces = [];
+    let jumbled = false;
 
-    // Snap to grid
-    canvas.on('object:moving', function (e) {
+    canvas.on('object:moving', snapToGrid);
+
+    function snapToGrid(e) {
       const obj = e.target;
       obj.set({
         left: Math.round(obj.left / blockSize) * blockSize,
         top: Math.round(obj.top / blockSize) * blockSize
       });
-    });
+    }
 
-    // Shapes from image (relative squares)
     const shapes = [
-      [[0,0],[1,0],[0,1],[1,1]],
-      [[0,0],[0,1],[1,1],[2,1]],
-      [[0,0],[1,0],[1,1],[1,2]],
-      [[0,0],[1,0],[2,0],[2,1]],
-      [[0,0],[1,0],[1,1],[2,0]],
-      [[0,0],[0,1],[1,0],[1,1]],
-      [[0,0],[0,1],[1,1],[2,1]],
-      [[0,0],[1,0],[2,0],[3,0]],
-      [[0,0],[1,0],[2,0],[2,-1]],
-      [[0,0],[1,0],[2,0],[1,1]],
-      [[0,0],[0,1],[1,1],[1,2]],
-      [[0,0],[0,1],[1,0],[1,1]],
-      [[0,0],[1,0],[1,1],[2,1]],
-      [[0,0],[1,0],[1,1],[2,0]]
+      [[0,0,true],[1,0,true],[0,1,true],[1,1,false]],
+      [[0,0,true],[1,0,true],[1,1,true],[2,1,false]],
+      [[0,0,true],[1,0,true],[1,1,false],[1,2,false]],
+      [[0,0,true],[1,0,false],[2,0,false],[2,1,true]],
+      [[0,0,false],[1,0,true],[2,0,false],[2,1,true]],
+      [[0,0,true],[1,0,true],[1,1,true],[2,1,false]],
+      [[0,0,true],[0,1,false],[1,1,true],[2,1,true]],
+      [[0,0,false],[1,0,true],[1,1,true],[1,2,true]],
+      [[0,0,false],[0,1,true],[1,1,true],[2,1,true]],
+      [[0,0,true],[1,0,false],[2,0,false],[0,1,true]],
+      [[0,0,false],[1,0,false],[2,0,true],[1,1,true]],
+      [[0,0,false],[1,0,true],[2,0,true],[0,1,true]],
+      [[0,0,true],[1,0,false],[0,1,true],[1,1,false]],
+      [[0,0,false],[1,0,false],[2,0,true],[3,0,false]]
     ];
 
-    function createPiece(x, y, shape, color) {
-      const blocks = shape.map(([dx, dy]) => new fabric.Rect({
+    function drawBoardGrid() {
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          canvas.add(new fabric.Rect({
+            left: col * blockSize,
+            top: row * blockSize,
+            width: blockSize,
+            height: blockSize,
+            fill: (row + col) % 2 === 0 ? '#fff' : '#999',
+            stroke: '#333',
+            selectable: false
+          }));
+        }
+      }
+    }
+
+    function createPiece(x, y, shape) {
+      const blocks = shape.map(([dx, dy, filled]) => new fabric.Rect({
         left: dx * blockSize,
         top: dy * blockSize,
         width: blockSize,
         height: blockSize,
-        fill: color,
+        fill: filled ? '#999' : '#fff',
         stroke: 'black',
         strokeWidth: 1
       }));
@@ -92,34 +141,29 @@
     function resetPuzzle() {
       canvas.clear();
       pieces = [];
+      jumbled = false;
+      document.getElementById("status").textContent = "";
+      drawBoardGrid();
+    }
+
+    function jumblePuzzle() {
+      if (jumbled) return;
+      canvas.clear();
+      drawBoardGrid();
+      pieces = [];
       document.getElementById("status").textContent = "";
 
-      // Draw grid
-      for (let i = 0; i <= gridSize; i++) {
-        const x = i * blockSize;
-        canvas.add(new fabric.Line([x, 0, x, blockSize * gridSize], {
-          stroke: '#ccc',
-          selectable: false
-        }));
-        const y = i * blockSize;
-        canvas.add(new fabric.Line([0, y, blockSize * gridSize, y], {
-          stroke: '#ccc',
-          selectable: false
-        }));
-      }
-
-      // Place pieces randomly
       shapes.forEach((shape, i) => {
-        const randX = 420 + (Math.random() * 100);
-        const randY = 20 + (i * 30) % 550;
-        const hue = (i * 25) % 360;
-        createPiece(randX, randY, shape, `hsl(${hue}, 70%, 75%)`);
+        const randX = 420 + Math.random() * 100;
+        const randY = 10 + i * 20;
+        createPiece(randX, randY, shape);
       });
+
+      jumbled = true;
     }
 
     function checkSolution() {
       const occupied = new Set();
-
       let allAligned = true;
 
       for (let group of pieces) {
