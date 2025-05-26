@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cut-Up Chessboard Puzzle</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+  <style>
+    body {
+      text-align: center;
+      font-family: sans-serif;
+    }
+    canvas {
+      border: 1px solid #333;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cut-Up Chessboard Puzzle</h1>
+  <p>Drag and rotate the pieces to reassemble the original chessboard.</p>
+  <canvas id="puzzle" width="800" height="600"></canvas>
+
+  <script>
+    const canvas = new fabric.Canvas('puzzle');
+
+    // Function to create a block at x, y with optional rotation
+    function createPiece(x, y, shape, color = 'lightblue') {
+      const blockSize = 30;
+      const groupItems = shape.map(([dx, dy]) =>
+        new fabric.Rect({
+          left: dx * blockSize,
+          top: dy * blockSize,
+          width: blockSize,
+          height: blockSize,
+          fill: color,
+          stroke: 'black',
+          strokeWidth: 1
+        })
+      );
+
+      const group = new fabric.Group(groupItems, {
+        left: x,
+        top: y,
+        hasControls: true,
+        hasBorders: true,
+        lockScalingFlip: true
+      });
+
+      canvas.add(group);
+    }
+
+    // 14 Tetris-style piece shapes (relative coordinates)
+    const pieces = [
+      [[0,0],[1,0],[0,1],[1,1]],       // Square
+      [[0,0],[1,0],[2,0],[2,1]],       // L
+      [[0,0],[1,0],[1,1],[2,1]],       // Z
+      [[0,0],[1,0],[1,1],[1,2]],       // T
+      [[0,0],[0,1],[1,1],[2,1]],       // L mirrored
+      [[0,0],[0,1],[0,2],[1,2]],       // J
+      [[0,0],[1,0],[2,0],[3,0]],       // I horizontal
+      [[0,0],[0,1],[0,2],[0,3]],       // I vertical
+      [[0,0],[1,0],[1,1]],             // small L
+      [[0,0],[1,0],[1,1],[2,1]],       // Z alt
+      [[0,0],[1,0],[2,0],[1,1]],       // T alt
+      [[0,0],[0,1],[1,1]],             // small corner
+      [[0,0],[1,0],[2,0],[2,-1]],      // L rotated
+      [[0,0],[1,0],[1,-1]]             // short L reversed
+    ];
+
+    // Place pieces randomly on the canvas
+    pieces.forEach((shape, i) => {
+      const x = 50 + (i % 7) * 100;
+      const y = 50 + Math.floor(i / 7) * 200;
+      createPiece(x, y, shape, `hsl(${i * 25}, 70%, 70%)`);
+    });
+
+    canvas.setBackgroundColor('#fdfdfd', canvas.renderAll.bind(canvas));
+  </script>
+</body>
+</html>
