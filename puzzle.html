@@ -10,71 +10,159 @@
       font-family: sans-serif;
     }
     canvas {
-      border: 1px solid #333;
-      margin-top: 10px;
+      border: 2px solid #333;
+      margin: 10px auto;
+      display: block;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
-  <h1>Cut-Up Chessboard Puzzle</h1>
-  <p>Drag and rotate the pieces to reassemble the original chessboard.</p>
-  <canvas id="puzzle" width="800" height="600"></canvas>
+  <h1>🧩 Cut-Up Chessboard Puzzle</h1>
+  <p>Drag, rotate (use corner), and snap pieces to fit an 8x8 grid.</p>
+
+  <button onclick="resetPuzzle()">🔁 Reset</button>
+  <button onclick="checkSolution()">✔️ Check Solution</button>
+  <p id="status" style="font-weight: bold; font-size: 18px;"></p>
+
+  <canvas id="puzzle" width="600" height="600"></canvas>
 
   <script>
     const canvas = new fabric.Canvas('puzzle');
+    const blockSize = 50;
+    const gridSize = 8;
+    let pieces = [];
 
-    // Function to create a block at x, y with optional rotation
-    function createPiece(x, y, shape, color = 'lightblue') {
-      const blockSize = 30;
-      const groupItems = shape.map(([dx, dy]) =>
-        new fabric.Rect({
-          left: dx * blockSize,
-          top: dy * blockSize,
-          width: blockSize,
-          height: blockSize,
-          fill: color,
-          stroke: 'black',
-          strokeWidth: 1
-        })
-      );
+    // Snap to grid
+    canvas.on('object:moving', function (e) {
+      const obj = e.target;
+      obj.set({
+        left: Math.round(obj.left / blockSize) * blockSize,
+        top: Math.round(obj.top / blockSize) * blockSize
+      });
+    });
 
-      const group = new fabric.Group(groupItems, {
+    // Shapes from image (relative squares)
+    const shapes = [
+      [[0,0],[1,0],[0,1],[1,1]],
+      [[0,0],[0,1],[1,1],[2,1]],
+      [[0,0],[1,0],[1,1],[1,2]],
+      [[0,0],[1,0],[2,0],[2,1]],
+      [[0,0],[1,0],[1,1],[2,0]],
+      [[0,0],[0,1],[1,0],[1,1]],
+      [[0,0],[0,1],[1,1],[2,1]],
+      [[0,0],[1,0],[2,0],[3,0]],
+      [[0,0],[1,0],[2,0],[2,-1]],
+      [[0,0],[1,0],[2,0],[1,1]],
+      [[0,0],[0,1],[1,1],[1,2]],
+      [[0,0],[0,1],[1,0],[1,1]],
+      [[0,0],[1,0],[1,1],[2,1]],
+      [[0,0],[1,0],[1,1],[2,0]]
+    ];
+
+    function createPiece(x, y, shape, color) {
+      const blocks = shape.map(([dx, dy]) => new fabric.Rect({
+        left: dx * blockSize,
+        top: dy * blockSize,
+        width: blockSize,
+        height: blockSize,
+        fill: color,
+        stroke: 'black',
+        strokeWidth: 1
+      }));
+
+      const group = new fabric.Group(blocks, {
         left: x,
         top: y,
         hasControls: true,
         hasBorders: true,
-        lockScalingFlip: true
+        lockScalingFlip: true,
+        snapThreshold: 5,
+        perPixelTargetFind: true
       });
 
       canvas.add(group);
+      pieces.push(group);
     }
 
-    // 14 Tetris-style piece shapes (relative coordinates)
-    const pieces = [
-      [[0,0],[1,0],[0,1],[1,1]],       // Square
-      [[0,0],[1,0],[2,0],[2,1]],       // L
-      [[0,0],[1,0],[1,1],[2,1]],       // Z
-      [[0,0],[1,0],[1,1],[1,2]],       // T
-      [[0,0],[0,1],[1,1],[2,1]],       // L mirrored
-      [[0,0],[0,1],[0,2],[1,2]],       // J
-      [[0,0],[1,0],[2,0],[3,0]],       // I horizontal
-      [[0,0],[0,1],[0,2],[0,3]],       // I vertical
-      [[0,0],[1,0],[1,1]],             // small L
-      [[0,0],[1,0],[1,1],[2,1]],       // Z alt
-      [[0,0],[1,0],[2,0],[1,1]],       // T alt
-      [[0,0],[0,1],[1,1]],             // small corner
-      [[0,0],[1,0],[2,0],[2,-1]],      // L rotated
-      [[0,0],[1,0],[1,-1]]             // short L reversed
-    ];
+    function resetPuzzle() {
+      canvas.clear();
+      pieces = [];
+      document.getElementById("status").textContent = "";
 
-    // Place pieces randomly on the canvas
-    pieces.forEach((shape, i) => {
-      const x = 50 + (i % 7) * 100;
-      const y = 50 + Math.floor(i / 7) * 200;
-      createPiece(x, y, shape, `hsl(${i * 25}, 70%, 70%)`);
-    });
+      // Draw grid
+      for (let i = 0; i <= gridSize; i++) {
+        const x = i * blockSize;
+        canvas.add(new fabric.Line([x, 0, x, blockSize * gridSize], {
+          stroke: '#ccc',
+          selectable: false
+        }));
+        const y = i * blockSize;
+        canvas.add(new fabric.Line([0, y, blockSize * gridSize, y], {
+          stroke: '#ccc',
+          selectable: false
+        }));
+      }
 
-    canvas.setBackgroundColor('#fdfdfd', canvas.renderAll.bind(canvas));
+      // Place pieces randomly
+      shapes.forEach((shape, i) => {
+        const randX = 420 + (Math.random() * 100);
+        const randY = 20 + (i * 30) % 550;
+        const hue = (i * 25) % 360;
+        createPiece(randX, randY, shape, `hsl(${hue}, 70%, 75%)`);
+      });
+    }
+
+    function checkSolution() {
+      const occupied = new Set();
+
+      let allAligned = true;
+
+      for (let group of pieces) {
+        const angle = group.angle % 360;
+        if (angle !== 0) {
+          allAligned = false;
+          break;
+        }
+
+        group.getObjects().forEach(rect => {
+          const absLeft = group.left + rect.left;
+          const absTop = group.top + rect.top;
+          const col = Math.round(absLeft / blockSize);
+          const row = Math.round(absTop / blockSize);
+
+          if (col < 0 || col >= gridSize || row < 0 || row >= gridSize) {
+            allAligned = false;
+            return;
+          }
+
+          const key = `${col},${row}`;
+          if (occupied.has(key)) {
+            allAligned = false;
+            return;
+          }
+          occupied.add(key);
+        });
+      }
+
+      const status = document.getElementById("status");
+      if (!allAligned) {
+        status.textContent = "❌ Not correctly assembled!";
+        status.style.color = "red";
+      } else if (occupied.size === 64) {
+        status.textContent = "✅ Correct! The chessboard is whole!";
+        status.style.color = "green";
+      } else {
+        status.textContent = `❌ Only ${occupied.size} squares filled.`;
+        status.style.color = "orange";
+      }
+    }
+
+    resetPuzzle();
   </script>
 </body>
 </html>
